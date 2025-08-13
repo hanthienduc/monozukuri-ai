@@ -1,0 +1,1 @@
+export { useInquiry } from './useInquiry'

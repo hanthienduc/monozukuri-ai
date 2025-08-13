@@ -1,0 +1,288 @@
+openapi: 3.0.3
+info:
+  title: '[Feature Name] API'
+  description: |
+    ## Overview
+    [Describe the feature and its purpose]
+    
+    ## Business Context
+    [Explain why this feature is needed]
+    
+    ## Technical Requirements
+    - Performance: [e.g., < 200ms p95 response time]
+    - Rate Limiting: [e.g., 100 requests per minute]
+    - Authentication: [e.g., Firebase Auth required]
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@manufacturing-assistant.com
+
+servers:
+  - url: https://api.manufacturing-assistant.com/v1
+    description: Production
+  - url: https://staging-api.manufacturing-assistant.com/v1
+    description: Staging
+  - url: http://localhost:8000/v1
+    description: Development
+
+tags:
+  - name: [feature]
+    description: [Feature description]
+
+paths:
+  /[endpoint]:
+    post:
+      summary: '[Action description]'
+      description: |
+        ## Purpose
+        [Detailed description of what this endpoint does]
+        
+        ## Business Rules
+        - [List all business rules]
+        
+        ## Performance Requirements
+        - Response time: < 200ms p95
+        - Timeout: 30 seconds
+        
+      operationId: [operationName]
+      tags:
+        - [feature]
+      
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/[RequestModel]'
+            examples:
+              example1:
+                summary: 'Basic example'
+                value:
+                  field1: "value1"
+                  field2: 123
+              example2:
+                summary: 'Complex example'
+                value:
+                  field1: "value2"
+                  field2: 456
+                  optionalField: "optional"
+      
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/[ResponseModel]'
+              examples:
+                success:
+                  summary: 'Successful response'
+                  value:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    status: "completed"
+                    result: 
+                      field1: "processed"
+                      field2: 789
+        
+        '400':
+          description: Bad Request - Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: 'Validation error'
+                  value:
+                    error:
+                      code: "VALIDATION_ERROR"
+                      message: "Invalid input parameters"
+                      details:
+                        - field: "field1"
+                          message: "Field1 is required"
+        
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+        
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    [RequestModel]:
+      type: object
+      required:
+        - field1
+        - field2
+      properties:
+        field1:
+          type: string
+          description: '[Field description]'
+          minLength: 1
+          maxLength: 255
+          example: "example value"
+        field2:
+          type: integer
+          description: '[Field description]'
+          minimum: 0
+          maximum: 10000
+          example: 123
+        optionalField:
+          type: string
+          description: '[Optional field description]'
+          nullable: true
+    
+    [ResponseModel]:
+      type: object
+      required:
+        - id
+        - status
+        - result
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 'Unique identifier for the operation'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: 'Current status of the operation'
+        result:
+          type: object
+          description: 'Operation result'
+          properties:
+            field1:
+              type: string
+            field2:
+              type: integer
+        createdAt:
+          type: string
+          format: date-time
+          description: 'Timestamp of creation'
+    
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: 'Error code for programmatic handling'
+              enum:
+                - VALIDATION_ERROR
+                - AUTHENTICATION_ERROR
+                - AUTHORIZATION_ERROR
+                - NOT_FOUND
+                - RATE_LIMIT_EXCEEDED
+                - INTERNAL_ERROR
+            message:
+              type: string
+              description: 'Human-readable error message'
+            details:
+              type: array
+              description: 'Additional error details'
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+            requestId:
+              type: string
+              description: 'Request ID for troubleshooting'
+  
+  responses:
+    UnauthorizedError:
+      description: Authentication information is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    RateLimitError:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per minute
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Firebase Auth JWT token'
+
+# Additional Documentation
+x-readme:
+  samples:
+    curl: |
+      curl -X POST https://api.manufacturing-assistant.com/v1/[endpoint] \
+        -H "Authorization: Bearer YOUR_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "field1": "value1",
+          "field2": 123
+        }'
+    
+    python: |
+      import requests
+      
+      response = requests.post(
+          "https://api.manufacturing-assistant.com/v1/[endpoint]",
+          headers={
+              "Authorization": "Bearer YOUR_TOKEN",
+              "Content-Type": "application/json"
+          },
+          json={
+              "field1": "value1",
+              "field2": 123
+          }
+      )
+    
+    javascript: |
+      const response = await fetch('https://api.manufacturing-assistant.com/v1/[endpoint]', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer YOUR_TOKEN',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          field1: 'value1',
+          field2: 123
+        })
+      });

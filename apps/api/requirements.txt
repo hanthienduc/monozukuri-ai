@@ -1,0 +1,48 @@
+# Manufacturing Inquiry Classification API Dependencies
+
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+python-multipart==0.0.6
+
+# AI/ML
+openai==1.6.0
+tiktoken==0.5.1
+numpy==1.24.3
+langchain==0.1.0
+
+# Database
+firebase-admin==6.3.0
+google-cloud-firestore==2.14.0
+weaviate-client==4.4.0
+redis[async]==5.0.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-decouple==3.8
+
+# Monitoring & Logging
+opentelemetry-api==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-instrumentation-fastapi==0.42b0
+opentelemetry-exporter-otlp==1.21.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+httpx==0.25.2
+
+# Development
+python-dotenv==1.0.0
+black==23.12.0
+ruff==0.1.8
+mypy==1.7.1
+
+# Utilities
+pyyaml==6.0.1
+aiofiles==23.2.1
+tenacity==8.2.3

@@ -1,0 +1,52 @@
+{
+  "name": "monozukuri-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Manufacturing Inquiry Assistant - AI-powered full-stack application",
+  "author": "Monozukuri AI Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,yml,yaml}\"",
+    "prepare": "husky install",
+    "web:dev": "pnpm --filter @monozukuri/web dev",
+    "api:dev": "cd apps/api && python -m uvicorn app.main:app --reload",
+    "web:build": "pnpm --filter @monozukuri/web build",
+    "web:test": "pnpm --filter @monozukuri/web test",
+    "setup": "pnpm install && pnpm run setup:env",
+    "setup:env": "cp .env.example .env && cp apps/web/.env.example apps/web/.env && cp apps/api/.env.example apps/api/.env"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.3.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  }
+}

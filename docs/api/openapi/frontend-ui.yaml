@@ -1,0 +1,605 @@
+openapi: 3.0.0
+info:
+  title: Manufacturing Inquiry Frontend API Specification
+  version: 1.0.0
+  description: API specification for frontend integration with the Manufacturing Inquiry Classification system
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://api.manufacturing-assistant.com
+    description: Production server
+
+paths:
+  /api/v1/inquiries/classify:
+    post:
+      summary: Submit inquiry for classification
+      operationId: classifyInquiry
+      tags:
+        - Inquiries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InquiryRequest'
+            examples:
+              quoteRequest:
+                summary: Quote Request Example
+                value:
+                  title: "Request for CNC machining quote"
+                  description: "We need 1000 units of aluminum brackets, dimensions 100x50x10mm"
+                  urgency: "high"
+                  contactEmail: "buyer@company.com"
+                  companyName: "Tech Corp"
+                  language: "en"
+              technicalSpec:
+                summary: Technical Specification Example
+                value:
+                  title: "Technical requirements for injection molding"
+                  description: "Need specs for ABS plastic parts with 0.1mm tolerance"
+                  urgency: "medium"
+                  contactEmail: "engineer@company.com"
+                  companyName: "Manufacturing Ltd"
+                  language: "en"
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: string
+                  description: JSON stringified inquiry data
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  maxItems: 5
+      responses:
+        '200':
+          description: Classification successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassificationResponse'
+              examples:
+                success:
+                  value:
+                    id: "inq_123456"
+                    category: "quote_request"
+                    confidence: 0.92
+                    subcategories:
+                      - name: "cnc_machining"
+                        confidence: 0.88
+                      - name: "aluminum_parts"
+                        confidence: 0.75
+                    processingTime: 1.23
+                    timestamp: "2025-01-13T10:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/inquiries:
+    get:
+      summary: Get list of inquiries
+      operationId: getInquiries
+      tags:
+        - Inquiries
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [quote_request, technical_spec, capability, partnership]
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: search
+          in: query
+          schema:
+            type: string
+            description: Search in title and description
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, confidence, category]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of inquiries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/inquiries/{id}:
+    get:
+      summary: Get inquiry details
+      operationId: getInquiry
+      tags:
+        - Inquiries
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inquiry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InquiryDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete inquiry
+      operationId: deleteInquiry
+      tags:
+        - Inquiries
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Inquiry deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/analytics:
+    get:
+      summary: Get analytics data
+      operationId: getAnalytics
+      tags:
+        - Analytics
+      parameters:
+        - name: timeRange
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [day, week, month, year]
+        - name: metrics
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [total_inquiries, avg_confidence, category_distribution, response_time]
+      responses:
+        '200':
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+
+  /api/v1/export:
+    post:
+      summary: Export inquiry data
+      operationId: exportInquiries
+      tags:
+        - Export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [csv, json, excel]
+                  default: csv
+                filters:
+                  $ref: '#/components/schemas/ExportFilters'
+      responses:
+        '200':
+          description: Export file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InquiryDetail'
+
+  /ws:
+    get:
+      summary: WebSocket connection for real-time updates
+      operationId: connectWebSocket
+      tags:
+        - WebSocket
+      responses:
+        '101':
+          description: Switching Protocols
+          headers:
+            Upgrade:
+              schema:
+                type: string
+                example: websocket
+            Connection:
+              schema:
+                type: string
+                example: Upgrade
+
+components:
+  schemas:
+    InquiryRequest:
+      type: object
+      required:
+        - title
+        - description
+        - contactEmail
+        - companyName
+        - language
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 200
+          description: Inquiry title
+        description:
+          type: string
+          minLength: 20
+          maxLength: 5000
+          description: Detailed inquiry description
+        category:
+          type: string
+          enum: [quote_request, technical_spec, capability, partnership]
+          description: Pre-selected category (optional)
+        urgency:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        contactEmail:
+          type: string
+          format: email
+        companyName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        language:
+          type: string
+          enum: [en, jp]
+          default: en
+        metadata:
+          type: object
+          additionalProperties: true
+
+    ClassificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique inquiry ID
+        category:
+          type: string
+          enum: [quote_request, technical_spec, capability, partnership]
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        subcategories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              confidence:
+                type: number
+                format: float
+        processingTime:
+          type: number
+          format: float
+          description: Processing time in seconds
+        timestamp:
+          type: string
+          format: date-time
+
+    InquiryListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InquirySummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        filters:
+          type: object
+          description: Applied filters
+
+    InquirySummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        confidence:
+          type: number
+        status:
+          type: string
+          enum: [pending, classified, failed]
+        createdAt:
+          type: string
+          format: date-time
+        companyName:
+          type: string
+
+    InquiryDetail:
+      allOf:
+        - $ref: '#/components/schemas/InquirySummary'
+        - type: object
+          properties:
+            description:
+              type: string
+            subcategories:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  confidence:
+                    type: number
+            contactEmail:
+              type: string
+            urgency:
+              type: string
+            language:
+              type: string
+            attachments:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  filename:
+                    type: string
+                  size:
+                    type: integer
+                  mimeType:
+                    type: string
+                  url:
+                    type: string
+            metadata:
+              type: object
+            processingTime:
+              type: number
+            updatedAt:
+              type: string
+              format: date-time
+
+    AnalyticsResponse:
+      type: object
+      properties:
+        timeRange:
+          type: string
+        metrics:
+          type: object
+          properties:
+            totalInquiries:
+              type: integer
+            averageConfidence:
+              type: number
+            categoryDistribution:
+              type: object
+              additionalProperties:
+                type: integer
+            responseTime:
+              type: object
+              properties:
+                p50:
+                  type: number
+                p95:
+                  type: number
+                p99:
+                  type: number
+        timeSeries:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              value:
+                type: number
+
+    ExportFilters:
+      type: object
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        categories:
+          type: array
+          items:
+            type: string
+        minConfidence:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    WebSocketMessage:
+      type: object
+      required:
+        - event
+        - timestamp
+      properties:
+        event:
+          type: string
+          enum:
+            - connect
+            - disconnect
+            - classification_start
+            - classification_progress
+            - classification_complete
+            - error
+        data:
+          type: object
+          properties:
+            inquiryId:
+              type: string
+            progress:
+              type: number
+              minimum: 0
+              maximum: 100
+            result:
+              $ref: '#/components/schemas/ClassificationResponse'
+            error:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "VALIDATION_ERROR"
+            message: "Invalid input data"
+            details:
+              field: "description"
+              reason: "Minimum length is 20 characters"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "UNAUTHORIZED"
+            message: "Authentication required"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "NOT_FOUND"
+            message: "Inquiry not found"
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "RATE_LIMITED"
+            message: "Too many requests"
+            details:
+              retryAfter: 60
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: "INTERNAL_ERROR"
+            message: "An unexpected error occurred"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - BearerAuth: []
+  - ApiKey: []

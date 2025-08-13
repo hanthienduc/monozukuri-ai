@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGINS=http://localhost:3000
+    volumes:
+      - ../../apps/api:/app
+    depends_on:
+      - redis
+      - firestore-emulator
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # React Frontend
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_WS_URL=ws://localhost:8080
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+    command: pnpm dev
+
+  # WebSocket Server (Go)
+  websocket:
+    build:
+      context: ../../apps/services/websocket
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AUTH_SECRET=${JWT_SECRET}
+    depends_on:
+      - redis
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Firestore Emulator
+  firestore-emulator:
+    image: google/cloud-sdk:latest
+    ports:
+      - "8085:8085"
+      - "4000:4000"  # Emulator UI
+    command: |
+      sh -c "
+      gcloud components install cloud-firestore-emulator &&
+      gcloud emulators firestore start --host-port=0.0.0.0:8085
+      "
+    environment:
+      - FIRESTORE_PROJECT_ID=${FIREBASE_PROJECT_ID:-test-project}
+
+  # Weaviate Vector Database
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    ports:
+      - "8088:8080"
+      - "50051:50051"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-openai
+      - ENABLE_MODULES=text2vec-openai
+      - OPENAI_APIKEY=${OPENAI_API_KEY}
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+
+volumes:
+  redis_data:
+  weaviate_data:
+
+networks:
+  default:
+    name: monozukuri-network
